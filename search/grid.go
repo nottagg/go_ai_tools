@@ -107,17 +107,62 @@ func (g *Grid) GetNeighbors(cell *Cell, allowDiagonal bool) []*Cell {
 	return neighbors
 }
 
-func (g *Grid) ExecuteSearch(startCell, endCell *Cell, searchType string) ([]*Cell, error) {
+func (g *Grid) ExecuteSearch(startCell, endCell *Cell, searchType string, allowDiagonal bool) ([]*Cell, error) {
 	switch searchType {
 	case "BFS":
-		return g.BFS(startCell, endCell)
+		return BFS(g, startCell, endCell, allowDiagonal)
 	case "DFS":
-		return g.DFS(startCell, endCell)
+		return DFS(g, startCell, endCell, allowDiagonal)
 	case "Dijkstra":
-		return g.Dijkstra(startCell, endCell)
+		return Dijkstra(g, startCell, endCell, allowDiagonal)
 	case "AStar":
-		return g.AStar(startCell, endCell)
+		return AStar(g, startCell, endCell, allowDiagonal)
 	default:
-		return nil, fmt.Errorf("unsupported search type: %s", searchType.SearchType)
+		return nil, fmt.Errorf("unsupported search type: %s", searchType)
 	}
+}
+
+// BFS performs a breadth-first search on the grid from startCell to endCell.
+// It returns the path from startCell to endCell and the visited cells.
+// If no path is found, it returns an error.
+func BFS(g *Grid, startCell, endCell *Cell, allowDiagonal bool) ([]*Cell, []*Cell, error) {
+	if startCell == nil || endCell == nil {
+		return nil, fmt.Errorf("start or end cell is nil")
+	}
+	if startCell.isBlock || endCell.isBlock {
+		return nil, fmt.Errorf("start or end cell is blocked")
+	}
+	if startCell == endCell {
+		return []*Cell{startCell}, nil
+	}
+	frontier := []*Cell{startCell}
+	visited := make(map[*Cell]bool)
+
+	for len(frontier) > 0 {
+		current := frontier[0]
+		frontier = frontier[1:]
+
+		if visited[current] {
+			continue
+		}
+		visited[current] = true
+		neighbors := g.GetNeighbors(current, allowDiagonal)
+		for _, neighbor := range neighbors {
+			if !visited[neighbor] {
+				neighbor.Parent = current
+				frontier = append(frontier, neighbor)
+				if neighbor == endCell {
+					return constructPath(neighbor), maptoslice(visited), nil
+				}
+			}
+		}
+	}
+}
+
+func maptoslice(m map[*Cell]bool) []*Cell {
+	var slice []*Cell
+	for k := range m {
+		slice = append(slice, k)
+	}
+	return slice
 }
