@@ -79,13 +79,3 @@ func (g *Grid) GetNeighbors(cell *Cell) []*Cell {
 	}
 	return neighbors
 }
-
-// GenerateRandom returns a grid with random weights given a width and height
-func GenerateRandomGrid(x, y int) *Grid {
-	grid := NewGrid(x, y)
-	for i := 0; i < y; i++ {
-		for j := 0; j < x; j++ {
-			grid.SetWeight(j, i, rand.Intn(10))
-		}
-	}
-}
