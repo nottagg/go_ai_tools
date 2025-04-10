@@ -22,10 +22,6 @@ type Cell struct {
 	Parent  *Cell
 }
 
-type SearchType struct {
-	SearchType string
-}
-
 // NewGrid creates a new grid with the specified width and height.
 // If random is true, the grid will be filled with random weights.
 // Otherwise, all cells will have a weight of 1.
@@ -111,8 +107,8 @@ func (g *Grid) GetNeighbors(cell *Cell, allowDiagonal bool) []*Cell {
 	return neighbors
 }
 
-func (g *Grid) ExecuteSearch(startCell, endCell *Cell, searchType SearchType) ([]*Cell, error) {
-	switch searchType.SearchType {
+func (g *Grid) ExecuteSearch(startCell, endCell *Cell, searchType string) ([]*Cell, error) {
+	switch searchType {
 	case "BFS":
 		return g.BFS(startCell, endCell)
 	case "DFS":
