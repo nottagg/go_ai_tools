@@ -11,7 +11,6 @@ import (
 type Node struct {
 	X      int
 	Y      int
-	Weight int
 	Neighbors *[]Neighbor
 	Parent *Node
 	Graph *Graph
@@ -28,6 +27,7 @@ type Neighbor struct {
 // AllowDiagonal is only used for grid like graphs
 type Graph struct {
 	Nodes			[]*Node
+	Edges
 	AllowDiagonal	bool
 }
 
@@ -48,7 +48,6 @@ func NewGraphFromMatrix(matrix [][]int, allowDiagonal bool) *Graph {
 			nodes[i*cols+j] = &Node{
 				X:      i,
 				Y:      j,
-				Weight: matrix[i][j],
 				Neighbors: &[]Neighbor{},
 			}
 		}
