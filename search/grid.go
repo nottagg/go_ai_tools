@@ -167,13 +167,10 @@ func BFS(g *Grid, startGridNode, endGridNode *GridNode) ([]helpers.Node[*Grid], 
 		for _, neighbor := range neighbors {
 			if !visited[neighbor] {
 				neighbor.SetParent(current)
-				frontier = append(frontier, neighbor)
 				if neighbor == endGridNode {
-					path := helpers.BuildReturnPath(neighbor)
-					visisted_GridNodes := helpers.MapKeysToSlice(visited)
-
-					return path, visisted_GridNodes, nil
+					return helpers.BuildReturnPath((neighbor)), helpers.MapKeysToSlice((visited)), nil
 				}
+				frontier = append(frontier, neighbor)
 			}
 		}
 	}
@@ -202,13 +199,10 @@ func DFS(g *Grid, startGridNode, endGridNode *GridNode) ([]helpers.Node[*Grid], 
 		for _, neighbor := range neighbors {
 			if !visited[neighbor] {
 				neighbor.SetParent(current)
-				frontier = append(frontier, neighbor)
 				if neighbor == endGridNode {
-					path := helpers.BuildReturnPath(neighbor)
-					visisted_GridNodes := helpers.MapKeysToSlice(visited)
-
-					return path, visisted_GridNodes, nil
+					return helpers.BuildReturnPath((neighbor)), helpers.MapKeysToSlice((visited)), nil
 				}
+				frontier = append(frontier, neighbor)
 			}
 		}
 	}
