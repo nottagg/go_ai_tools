@@ -3,82 +3,39 @@ package search
 import (
 	"fmt"
 	"math/rand"
+
+	"main.go/helpers"
 )
 
-// Grid represents a 2D grid of cells.
-type Grid struct {
-	Width  int
-	Height int
-	Cells  [][]*Cell
+// GridNode represents a GridNode in the grid.
+// Implements the Node interface from the helpers package.
+type GridNode struct {
+	X      int
+	Y      int
+	Weight int
+	Parent *GridNode
 }
 
-// Cell represents a cell in the grid.
-type Cell struct {
-	X       int
-	Y       int
-	isBlock bool
-	Weight  int
-	Visited bool
-	Parent  *Cell
+// GetParent returns the parent of the GridNode.
+func (c *GridNode) GetParent() helpers.Node[*Grid] {
+	return c.Parent
 }
 
-// NewGrid creates a new grid with the specified width and height.
-// If random is true, the grid will be filled with random weights.
-// Otherwise, all cells will have a weight of 1.
-func NewGrid(width, height, max_weight int, random bool) *Grid {
-	cells := make([][]*Cell, height)
-	for y := 0; y < height; y++ {
-		cells[y] = make([]*Cell, width)
-		for x := range width {
-			weight := 1
-			if random {
-				weight = rand.Intn(max_weight) // Random weight between 0 and max_weight
-			}
-			cells[y][x] = &Cell{
-				X:       x,
-				Y:       y,
-				Weight:  weight,
-				Visited: false,
-			}
-		}
-	}
-	return &Grid{Width: width, Height: height, Cells: cells}
+// SetParent sets the parent of the GridNode.
+func (c *GridNode) SetParent(parent helpers.Node[*Grid]) {
+	c.Parent = parent.(*GridNode)
 }
 
-// GetCell returns the cell at the specified coordinates.
-func (g *Grid) GetCell(x, y int) *Cell {
-	if x < 0 || x >= g.Width || y < 0 || y >= g.Height {
-		return nil
-	}
-	return g.Cells[y][x]
-}
-
-// SetBlock sets the cell at the specified coordinates as a block.
-func (g *Grid) SetBlock(x, y int) {
-	cell := g.GetCell(x, y)
-	if cell != nil {
-		cell.isBlock = true
-	}
-}
-
-// SetWeight sets the weight of the cell at the specified coordinates.
-func (g *Grid) SetWeight(x, y, weight int) {
-	cell := g.GetCell(x, y)
-	if cell != nil {
-		cell.Weight = weight
-	}
-}
-
-// GetNeighbors returns the neighboring cells of the specified cell.
-// If allowDiagonal is true, diagonal neighbors are included.
+// GetNeighbors returns the neighboring GridNodes of the specified GridNode.
 // Otherwise, only orthogonal neighbors are included.
-func (g *Grid) GetNeighbors(cell *Cell, allowDiagonal bool) []*Cell {
-	neighbors := []*Cell{}
+// Non-traversable GridNodes (weight -1) are excluded from the neighbors.
+func (c *GridNode) GetNeighbors(g *Grid) []helpers.Node[*Grid] {
+	neighbors := []helpers.Node[*Grid]{}
 	var directions []struct {
 		dx int
 		dy int
 	}
-	if allowDiagonal {
+	if g.AllowDiagonal {
 		directions = []struct {
 			dx int
 			dy int
@@ -99,70 +56,169 @@ func (g *Grid) GetNeighbors(cell *Cell, allowDiagonal bool) []*Cell {
 		}
 	}
 	for _, dir := range directions {
-		nx, ny := cell.X+dir.dx, cell.Y+dir.dy
-		if neighbor := g.GetCell(nx, ny); neighbor != nil && !neighbor.isBlock {
+		nx, ny := c.X+dir.dx, c.Y+dir.dy
+		if neighbor := g.GetGridNode(nx, ny); neighbor != nil && neighbor.Weight != -1 {
 			neighbors = append(neighbors, neighbor)
 		}
 	}
 	return neighbors
 }
 
-func (g *Grid) ExecuteSearch(startCell, endCell *Cell, searchType string, allowDiagonal bool) ([]*Cell, error) {
-	switch searchType {
-	case "BFS":
-		return BFS(g, startCell, endCell, allowDiagonal)
-	case "DFS":
-		return DFS(g, startCell, endCell, allowDiagonal)
-	case "Dijkstra":
-		return Dijkstra(g, startCell, endCell, allowDiagonal)
-	case "AStar":
-		return AStar(g, startCell, endCell, allowDiagonal)
-	default:
-		return nil, fmt.Errorf("unsupported search type: %s", searchType)
+// Grid represents a 2D grid of GridNodes.
+// It contains the width and height of the grid, a 2D slice of GridNodes,
+// and a boolean indicating whether diagonal movement is allowed.
+type Grid struct {
+	Width         int
+	Height        int
+	GridNodes     [][]*GridNode
+	AllowDiagonal bool
+}
+
+// NewGridFromMatrix creates a new grid from a 2D matrix of weights.
+// The matrix should be a slice of slices of integers, where each integer
+// represents the weight of the corresponding GridNode in the grid.
+// A weight of -1 indicates a non-traversable GridNode.
+func NewGrid(matrix [][]int) *Grid {
+	width := len(matrix[0])
+	height := len(matrix)
+	GridNodes := make([][]*GridNode, height)
+	for y := 0; y < height; y++ {
+		GridNodes[y] = make([]*GridNode, width)
+		for x := 0; x < width; x++ {
+			GridNodes[y][x] = &GridNode{
+				X:      x,
+				Y:      y,
+				Weight: matrix[y][x],
+			}
+		}
+	}
+	return &Grid{Width: width, Height: height, GridNodes: GridNodes}
+}
+
+// RandomizeWeights takes a grid and produces random weights between -1 and max_weights
+func (g *Grid) RandomizeWeights(max_weight int) {
+	for y := 0; y < g.Height; y++ {
+		for x := 0; x < g.Width; x++ {
+			weight := rand.Intn(max_weight) - 1
+			g.GridNodes[y][x].Weight = weight
+		}
 	}
 }
 
-// BFS performs a breadth-first search on the grid from startCell to endCell.
-// It returns the path from startCell to endCell and the visited cells.
+// GetGridNode returns the GridNode at the specified coordinates.
+func (g *Grid) GetGridNode(x, y int) *GridNode {
+	if x < 0 || x >= g.Width || y < 0 || y >= g.Height {
+		return nil
+	}
+	return g.GridNodes[y][x]
+}
+
+// SetWeight sets the weight of the GridNode at the specified coordinates.
+// A weight of -1 indicates a non-traversable GridNode.
+func (g *Grid) SetWeight(x, y, weight int) {
+	GridNode := g.GetGridNode(x, y)
+	if GridNode != nil {
+		GridNode.Weight = weight
+	}
+}
+
+// ExecuteSearch executes the specified search algorithm on the grid.
+// It takes the start and end GridNodes, the search type as a string "BFS", "DFS", "Dijkstra", or "AStar",
+// and a boolean indicating whether diagonal movement is allowed.
+// It returns the path from startGridNode to endGridNode and the visited GridNodes.
 // If no path is found, it returns an error.
-func BFS(g *Grid, startCell, endCell *Cell, allowDiagonal bool) ([]*Cell, []*Cell, error) {
-	if startCell == nil || endCell == nil {
-		return nil, fmt.Errorf("start or end cell is nil")
+func (g *Grid) ExecuteSearch(startGridNode, endGridNode *GridNode, searchType string) ([]helpers.Node[*Grid], []helpers.Node[*Grid], error) {
+	switch searchType {
+	case "BFS":
+		return BFS(g, startGridNode, endGridNode)
+	case "DFS":
+		return DFS(g, startGridNode, endGridNode)
+	case "Dijkstra":
+		return Dijkstra(g, startGridNode, endGridNode)
+	case "AStar":
+		return AStar(g, startGridNode, endGridNode)
+	default:
+		return nil, nil, fmt.Errorf("unsupported search type: %s", searchType)
 	}
-	if startCell.isBlock || endCell.isBlock {
-		return nil, fmt.Errorf("start or end cell is blocked")
+}
+
+// BFS performs a breadth-first search on the grid from startGridNode to endGridNode.
+// It returns the path from startGridNode to endGridNode and the visited GridNodes.
+// If no path is found, it returns an error.
+func BFS(g *Grid, startGridNode, endGridNode *GridNode) ([]helpers.Node[*Grid], []helpers.Node[*Grid], error) {
+	if startGridNode == nil || endGridNode == nil {
+		return nil, nil, fmt.Errorf("start or end GridNode is nil")
 	}
-	if startCell == endCell {
-		return []*Cell{startCell}, nil
+	if startGridNode.Weight == -1 || endGridNode.Weight == -1 {
+		return nil, nil, fmt.Errorf("start or end GridNode is blocked")
 	}
-	frontier := []*Cell{startCell}
-	visited := make(map[*Cell]bool)
+	if startGridNode == endGridNode {
+		return []helpers.Node[*Grid]{startGridNode}, nil, nil
+	}
+	frontier := []helpers.Node[*Grid]{startGridNode}
+	visited := make(map[helpers.Node[*Grid]]bool)
 
 	for len(frontier) > 0 {
 		current := frontier[0]
 		frontier = frontier[1:]
 
-		if visited[current] {
-			continue
-		}
+		neighbors := current.GetNeighbors(g)
 		visited[current] = true
-		neighbors := g.GetNeighbors(current, allowDiagonal)
 		for _, neighbor := range neighbors {
 			if !visited[neighbor] {
-				neighbor.Parent = current
+				neighbor.SetParent(current)
 				frontier = append(frontier, neighbor)
-				if neighbor == endCell {
-					return constructPath(neighbor), maptoslice(visited), nil
+				if neighbor == endGridNode {
+					path := helpers.BuildReturnPath(neighbor)
+					visisted_GridNodes := helpers.MapKeysToSlice(visited)
+
+					return path, visisted_GridNodes, nil
 				}
 			}
 		}
 	}
+	return nil, helpers.MapKeysToSlice(visited), fmt.Errorf("no path found")
 }
 
-func maptoslice(m map[*Cell]bool) []*Cell {
-	var slice []*Cell
-	for k := range m {
-		slice = append(slice, k)
+func DFS(g *Grid, startGridNode, endGridNode *GridNode) ([]helpers.Node[*Grid], []helpers.Node[*Grid], error) {
+	if startGridNode == nil || endGridNode == nil {
+		return nil, nil, fmt.Errorf("start or end GridNode is nil")
 	}
-	return slice
+	if startGridNode.Weight == -1 || endGridNode.Weight == -1 {
+		return nil, nil, fmt.Errorf("start or end GridNode is blocked")
+	}
+	if startGridNode == endGridNode {
+		return []helpers.Node[*Grid]{startGridNode}, nil, nil
+	}
+	frontier := []helpers.Node[*Grid]{startGridNode}
+	visited := make(map[helpers.Node[*Grid]]bool)
+
+	for len(frontier) > 0 {
+		current := frontier[len(frontier)-1]
+		frontier = frontier[:len(frontier)-1]
+
+		neighbors := current.GetNeighbors(g)
+		visited[current] = true
+		for _, neighbor := range neighbors {
+			if !visited[neighbor] {
+				neighbor.SetParent(current)
+				frontier = append(frontier, neighbor)
+				if neighbor == endGridNode {
+					path := helpers.BuildReturnPath(neighbor)
+					visisted_GridNodes := helpers.MapKeysToSlice(visited)
+
+					return path, visisted_GridNodes, nil
+				}
+			}
+		}
+	}
+	return nil, helpers.MapKeysToSlice(visited), fmt.Errorf("no path found")
+}
+
+func Dijkstra(g *Grid, startGridNode, endGridNode *GridNode) ([]helpers.Node[*Grid], []helpers.Node[*Grid], error) {
+	return nil, nil, fmt.Errorf("Dijkstra search not implemented")
+}
+
+func AStar(g *Grid, startGridNode, endGridNode *GridNode) ([]helpers.Node[*Grid], []helpers.Node[*Grid], error) {
+	return nil, nil, fmt.Errorf("A* search not implemented")
 }
