@@ -1,13 +1,6 @@
 package helpers
 
 // Contains helper functions used across the toolset
-// GetNeighbors takes the overall graph and returns neighbors of the node
-// T is a generic for the graph type
-type Node[graphType any] interface {
-	GetParent() Node[graphType]
-	SetParent(Node[graphType])
-	GetNeighbors(graph graphType) []Node[graphType]
-}
 
 // MapKeysToSlice takes a generic map and returns the keys as a slice
 func MapKeysToSlice[K comparable, V any](m map[K]V) []K {
@@ -27,12 +20,23 @@ func MapValuesToSlice[K comparable, V any](m map[K]V) []V {
 	return values
 }
 
-// Given a node with a "Parent" pointer, build a path and return as a slice of nodes
-func BuildReturnPath[T any](node Node[T]) []Node[T] {
-	path := []Node[T]{}
-	for node != nil {
-		path = append(path, node)
-		node = node.GetParent()
+func GetGridDirections(allowDiagonal bool) [][2]int {
+	if allowDiagonal {
+		return [][2]int{
+			{0, -1},  // Up
+			{1, 0},   // Right
+			{0, 1},   // Down
+			{-1, 0},  // Left
+			{-1, -1}, // Up-Left
+			{1, -1},  // Up-Right
+			{1, 1},   // Down-Right
+			{-1, 1},  // Down-Left
+		}
 	}
-	return path
+	return [][2]int{
+		{0, -1}, // Up
+		{1, 0},  // Right
+		{0, 1},  // Down
+		{-1, 0}, // Left
+	}
 }

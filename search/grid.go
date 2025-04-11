@@ -2,172 +2,143 @@ package search
 
 import (
 	"fmt"
-	"math/rand"
 
 	"main.go/helpers"
 )
 
-// GridNode represents a GridNode in the grid.
+// node represents a node in the grid.
 // Implements the Node interface from the helpers package.
-type GridNode struct {
+type Node struct {
 	X      int
 	Y      int
 	Weight int
-	Parent *GridNode
+	Neighbors *[]Neighbor
+	Parent *Node
+	Graph *Graph
 }
 
-// GetParent returns the parent of the GridNode.
-func (c *GridNode) GetParent() helpers.Node[*Grid] {
-	return c.Parent
+type Neighbor struct {
+	cost int
+	node *Node
 }
 
-// SetParent sets the parent of the GridNode.
-func (c *GridNode) SetParent(parent helpers.Node[*Grid]) {
-	c.Parent = parent.(*GridNode)
-}
-
-// GetNeighbors returns the neighboring GridNodes of the specified GridNode.
-// Otherwise, only orthogonal neighbors are included.
-// Non-traversable GridNodes (weight -1) are excluded from the neighbors.
-func (c *GridNode) GetNeighbors(g *Grid) []helpers.Node[*Grid] {
-	neighbors := []helpers.Node[*Grid]{}
-	var directions []struct {
-		dx int
-		dy int
-	}
-	if g.AllowDiagonal {
-		directions = []struct {
-			dx int
-			dy int
-		}{
-			{-1, -1}, {-1, 0}, {-1, 1},
-			{0, -1}, {0, 1},
-			{1, -1}, {1, 0}, {1, 1},
-		}
-	} else {
-		directions = []struct {
-			dx int
-			dy int
-		}{
-			{-1, 0},
-			{0, -1},
-			{0, 1},
-			{1, 0},
-		}
-	}
-	for _, dir := range directions {
-		nx, ny := c.X+dir.dx, c.Y+dir.dy
-		if neighbor := g.GetGridNode(nx, ny); neighbor != nil && neighbor.Weight != -1 {
-			neighbors = append(neighbors, neighbor)
-		}
-	}
-	return neighbors
-}
-
-// Grid represents a 2D grid of GridNodes.
-// It contains the width and height of the grid, a 2D slice of GridNodes,
+// Grid represents a 2D grid of nodes.
+// It contains the width and height of the grid, a 2D slice of nodes,
 // and a boolean indicating whether diagonal movement is allowed.
-type Grid struct {
-	Width         int
-	Height        int
-	GridNodes     [][]*GridNode
-	AllowDiagonal bool
+// AllowDiagonal is only used for grid like graphs
+type Graph struct {
+	Nodes			[]*Node
+	AllowDiagonal	bool
 }
 
-// NewGridFromMatrix creates a new grid from a 2D matrix of weights.
+// NewGraphFromMatrix creates a new graph from a 2D matrix of weights.
 // The matrix should be a slice of slices of integers, where each integer
-// represents the weight of the corresponding GridNode in the grid.
-// A weight of -1 indicates a non-traversable GridNode.
-func NewGrid(matrix [][]int) *Grid {
-	width := len(matrix[0])
-	height := len(matrix)
-	GridNodes := make([][]*GridNode, height)
-	for y := 0; y < height; y++ {
-		GridNodes[y] = make([]*GridNode, width)
-		for x := 0; x < width; x++ {
-			GridNodes[y][x] = &GridNode{
-				X:      x,
-				Y:      y,
-				Weight: matrix[y][x],
+// represents the weight of the corresponding edge in the grid.
+// A weight of -1 indicates a non-traversable node.
+func NewGraphFromMatrix(matrix [][]int, allowDiagonal bool) *Graph {
+	rows := len(matrix)
+	if rows == 0 {
+		return nil
+	}
+	cols := len(matrix[0])
+	nodes := make([]*Node, rows*cols)
+
+	for i := 0; i < rows; i++ {
+		for j := 0; j < cols; j++ {
+			nodes[i*cols+j] = &Node{
+				X:      i,
+				Y:      j,
+				Weight: matrix[i][j],
+				Neighbors: &[]Neighbor{},
 			}
 		}
 	}
-	return &Grid{Width: width, Height: height, GridNodes: GridNodes}
-}
 
-// RandomizeWeights takes a grid and produces random weights between -1 and max_weights
-func (g *Grid) RandomizeWeights(max_weight int) {
-	for y := 0; y < g.Height; y++ {
-		for x := 0; x < g.Width; x++ {
-			weight := rand.Intn(max_weight) - 1
-			g.GridNodes[y][x].Weight = weight
-		}
+	g := &Graph{
+		Nodes: nodes,
+		AllowDiagonal: allowDiagonal,
 	}
+
+	for _, node := range nodes {
+		node.Graph = g
+	}
+
+	return g
 }
 
-// GetGridNode returns the GridNode at the specified coordinates.
-func (g *Grid) GetGridNode(x, y int) *GridNode {
-	if x < 0 || x >= g.Width || y < 0 || y >= g.Height {
+// GetNeighbors returns the neighbors of the node in the grid.
+// It returns a slice of nodes that are adjacent to the current node.
+// The neighbors are determined based on the grid's dimensions and the
+// AllowDiagonal property of the graph.
+func (g *Graph) GetNeighbors(node *Node) []*Node {
+	if node == nil {
 		return nil
 	}
-	return g.GridNodes[y][x]
+	directions := helpers.GetGridDirections(g.AllowDiagonal)
+	neighbors := make([]*Node, 0)
+
+	for _, direction := range directions {
+		newX := node.X + direction[0]
+		newY := node.Y + direction[1]
+
+		if newX >= 0 && newX < len(g.Nodes) && newY >= 0 && newY < len(g.Nodes[0]) {
+			neighbor := g.Nodes[newX*len(g.Nodes[0])+newY]
+			if neighbor.Weight != -1 {
+				neighbors = append(neighbors, neighbor)
+			}
+		}
+	}
+
+	return neighbors
 }
 
-// SetWeight sets the weight of the GridNode at the specified coordinates.
-// A weight of -1 indicates a non-traversable GridNode.
-func (g *Grid) SetWeight(x, y, weight int) {
-	GridNode := g.GetGridNode(x, y)
-	if GridNode != nil {
-		GridNode.Weight = weight
-	}
-}
 
 // ExecuteSearch executes the specified search algorithm on the grid.
-// It takes the start and end GridNodes, the search type as a string "BFS", "DFS", "Dijkstra", or "AStar",
+// It takes the start and end nodes, the search type as a string "BFS", "DFS", "Dijkstra", or "AStar",
 // and a boolean indicating whether diagonal movement is allowed.
-// It returns the path from startGridNode to endGridNode and the visited GridNodes.
+// It returns the path from startnode to endnode and the visited nodes.
 // If no path is found, it returns an error.
-func (g *Grid) ExecuteSearch(startGridNode, endGridNode *GridNode, searchType string) ([]helpers.Node[*Grid], []helpers.Node[*Grid], error) {
+func (g *Grid) ExecuteSearch(startnode, endnode *node, searchType string) ([]helpers.Node[*Grid], []helpers.Node[*Grid], error) {
 	switch searchType {
 	case "BFS":
-		return BFS(g, startGridNode, endGridNode)
+		return BFS(g, startnode, endnode)
 	case "DFS":
-		return DFS(g, startGridNode, endGridNode)
+		return DFS(g, startnode, endnode)
 	case "Dijkstra":
-		return Dijkstra(g, startGridNode, endGridNode)
+		return Dijkstra(g, startnode, endnode)
 	case "AStar":
-		return AStar(g, startGridNode, endGridNode)
+		return AStar(g, startnode, endnode)
 	default:
 		return nil, nil, fmt.Errorf("unsupported search type: %s", searchType)
 	}
 }
 
-// BFS performs a breadth-first search on the grid from startGridNode to endGridNode.
-// It returns the path from startGridNode to endGridNode and the visited GridNodes.
+// BFS performs a breadth-first search on the grid from startnode to endnode.
+// It returns the path from startnode to endnode and the visited nodes.
 // If no path is found, it returns an error.
-func BFS(g *Grid, startGridNode, endGridNode *GridNode) ([]helpers.Node[*Grid], []helpers.Node[*Grid], error) {
-	if startGridNode == nil || endGridNode == nil {
-		return nil, nil, fmt.Errorf("start or end GridNode is nil")
+func BFS(g *Grid, startnode, endnode *node) ([]helpers.Node[*Grid], []helpers.Node[*Grid], error) {
+	if startnode == nil || endnode == nil {
+		return nil, nil, fmt.Errorf("start or end node is nil")
 	}
-	if startGridNode.Weight == -1 || endGridNode.Weight == -1 {
-		return nil, nil, fmt.Errorf("start or end GridNode is blocked")
+	if startnode.Weight == -1 || endnode.Weight == -1 {
+		return nil, nil, fmt.Errorf("start or end node is blocked")
 	}
-	if startGridNode == endGridNode {
-		return []helpers.Node[*Grid]{startGridNode}, nil, nil
+	if startnode == endnode {
+		return []helpers.Node[*Grid]{startnode}, nil, nil
 	}
-	frontier := []helpers.Node[*Grid]{startGridNode}
+	frontier := []helpers.Node[*Grid]{startnode}
 	visited := make(map[helpers.Node[*Grid]]bool)
 
 	for len(frontier) > 0 {
 		current := frontier[0]
-		frontier = frontier[1:]
+		frontier = frontier[1GetNeighbors(g)
 
-		neighbors := current.GetNeighbors(g)
+		neighbors := current.Neighbors
 		visited[current] = true
-		for _, neighbor := range neighbors {
+		for _, neiighbors {
 			if !visited[neighbor] {
-				neighbor.SetParent(current)
-				if neighbor == endGridNode {
+				neighbor.Parent = current
+				if neighbor == endnode {
 					return helpers.BuildReturnPath((neighbor)), helpers.MapKeysToSlice((visited)), nil
 				}
 				frontier = append(frontier, neighbor)
@@ -177,17 +148,17 @@ func BFS(g *Grid, startGridNode, endGridNode *GridNode) ([]helpers.Node[*Grid], 
 	return nil, helpers.MapKeysToSlice(visited), fmt.Errorf("no path found")
 }
 
-func DFS(g *Grid, startGridNode, endGridNode *GridNode) ([]helpers.Node[*Grid], []helpers.Node[*Grid], error) {
-	if startGridNode == nil || endGridNode == nil {
-		return nil, nil, fmt.Errorf("start or end GridNode is nil")
+func DFS(g *Grid, startnode, endnode *node) ([]helpers.Node[*Grid], []helpers.Node[*Grid], error) {
+	if startnode == nil || endnode == nil {
+		return nil, nil, fmt.Errorf("start or end node is nil")
 	}
-	if startGridNode.Weight == -1 || endGridNode.Weight == -1 {
-		return nil, nil, fmt.Errorf("start or end GridNode is blocked")
+	if startnode.Weight == -1 || endnode.Weight == -1 {
+		return nil, nil, fmt.Errorf("start or end node is blocked")
 	}
-	if startGridNode == endGridNode {
-		return []helpers.Node[*Grid]{startGridNode}, nil, nil
+	if startnode == endnode {
+		return []helpers.Node[*Grid]{startnode}, nil, nil
 	}
-	frontier := []helpers.Node[*Grid]{startGridNode}
+	frontier := []helpers.Node[*Grid]{startnode}
 	visited := make(map[helpers.Node[*Grid]]bool)
 
 	for len(frontier) > 0 {
@@ -199,7 +170,7 @@ func DFS(g *Grid, startGridNode, endGridNode *GridNode) ([]helpers.Node[*Grid], 
 		for _, neighbor := range neighbors {
 			if !visited[neighbor] {
 				neighbor.SetParent(current)
-				if neighbor == endGridNode {
+				if neighbor == endnode {
 					return helpers.BuildReturnPath((neighbor)), helpers.MapKeysToSlice((visited)), nil
 				}
 				frontier = append(frontier, neighbor)
@@ -209,10 +180,10 @@ func DFS(g *Grid, startGridNode, endGridNode *GridNode) ([]helpers.Node[*Grid], 
 	return nil, helpers.MapKeysToSlice(visited), fmt.Errorf("no path found")
 }
 
-func Dijkstra(g *Grid, startGridNode, endGridNode *GridNode) ([]helpers.Node[*Grid], []helpers.Node[*Grid], error) {
+func Dijkstra(g *Grid, startnode, endnode *node) ([]helpers.Node[*Grid], []helpers.Node[*Grid], error) {
 	return nil, nil, fmt.Errorf("Dijkstra search not implemented")
 }
 
-func AStar(g *Grid, startGridNode, endGridNode *GridNode) ([]helpers.Node[*Grid], []helpers.Node[*Grid], error) {
+func AStar(g *Grid, startnode, endnode *node) ([]helpers.Node[*Grid], []helpers.Node[*Grid], error) {
 	return nil, nil, fmt.Errorf("A* search not implemented")
 }
