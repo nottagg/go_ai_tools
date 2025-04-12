@@ -80,7 +80,6 @@ func (g *Graph[K, V]) Length() int {
 // g.AddNode("B", 1, 1)
 // fmt.Println(g.Length()) // 2
 func (g *Graph[K, V]) AddNode(k K, v V, x, y int) {
-	// Add a node to the graph
 	if _, exists := g.nodes[k]; !exists {
 		g.nodes[k] = &Node[K, V]{
 			value: v,
@@ -98,7 +97,6 @@ func (g *Graph[K, V]) AddNode(k K, v V, x, y int) {
 // g.AddNodesFrom([]Node{"A", "B", "C"})
 // fmt.Println(g.Length()) // 3
 func (g *Graph[K, V]) AddNodesFrom(nodes []Node[K, V]) {
-	// Add multiple nodes to the graph
 	for _, node := range nodes {
 		g.AddNode(node.id, node.value, node.x, node.y)
 	}
@@ -114,27 +112,128 @@ func (g *Graph[K, V]) AddNodesFrom(nodes []Node[K, V]) {
 // g.RemoveNode("A")
 // fmt.Println(g.Length()) // 1
 func (g *Graph[K, V]) RemoveNode(k K) {
-	// Remove a node from the graph
-	if _, exists := g.nodes[k]; exists {
-		delete(g.nodes, k)
-	}
+	delete(g.nodes, k)
 }
 
-func (g *Graph[K]) RemoveNodesFrom(nodes []K) {
-	// Remove multiple nodes from the graph
+// Removes multiple nodes from the graph
+// Takes an array of node keys
+// Examples
+// g := New("MyGraph", false)
+// g.AddNode("A", "A",0, 0)
+// g.AddNode("B", "B",1, 1)
+// g.RemoveNodesFrom([]string{"A", "B"})
+// fmt.Println(g.Length()) // 0
+func (g *Graph[K, V]) RemoveNodesFrom(nodes []K) {
 	for _, node := range nodes {
 		g.RemoveNode(node)
 	}
 }
 
-func (g *Graph) AddEdge(n1, n2 string) {
-	// Add an edge between two nodes
+// Gets a node from the graph
+// If the node is not in the graph, return nil
+// If the node is in the graph, return a pointer to the node object
+// Examples
+// g := New("MyGraph", false)
+// g.AddNode("A", "A",0, 0)
+// g.AddNode("B", "B",1, 1)
+// fmt.Println(g.GetNode("A")) // &{A A 0 0}
+func (g *Graph[K, V]) GetNode(n K) *Node[K, V] {
+	if _, exists := g.nodes[n]; exists {
+		return g.nodes[n]
+	}
+	return nil
 }
 
-func (g *Graph) RemoveNode(n string) {
-	// Remove a node from the graph
+// Returns the map of nodes
+// The map is keyed by the node id
+// The value is a pointer to the node object
+// Examples
+// g := New("MyGraph", false)
+// g.AddNode("A", "A",0, 0)
+// g.AddNode("B", "B",1, 1)
+// fmt.Println(g.GetNodes()) // map[A:{VALUE} B:{VALUE}]
+func (g *Graph[K, V]) GetNodes() map[K]*Node[K, V] {
+	return g.nodes
 }
 
-func (g *Graph) RemoveEdge(n1, n2 string) {
-	// Remove an edge between two nodes
+// Adds an edge between two nodes
+// If the nodes are not in the graph, do nothing
+// If the edge already exists, do nothing
+// If the graph is directed, the edge is added in one direction
+// If the graph is undirected, the edge is added in both directions
+// weight could be uniform for a graph wtihout edge weights
+// Examples
+// g := New("MyGraph", false)
+// g.AddNode("B", "B",1, 1)
+// g.AddNode("C", "C",2, 2)
+// g.AddEdge("B", "C", 2)
+// fmt.Println(g.HasEdge("B", "C")) // true
+func (g *Graph[K, V]) AddEdge(n1, n2 K, weight int) {
+	if _, exists := g.nodes[n1]; exists {
+		if _, exists := g.nodes[n2]; exists {
+			if _, exists := g.edges[n1]; !exists {
+				g.edges[n1] = make(map[K]int)
+			}
+			g.edges[n1][n2] = weight
+			if g.graphType == Undirected {
+				if _, exists := g.edges[n2]; !exists {
+					g.edges[n2] = make(map[K]int)
+				}
+				g.edges[n2][n1] = weight
+			}
+		}
+	}
+
+}
+
+// Gets the edges of a node
+// If the edge does not exist, return false
+// Examples
+// g := New("MyGraph", false)
+// g.AddNode("B", "B",1, 1)
+// g.AddNode("C", "C",2, 2)
+// g.AddEdge("B", "C", 2)
+// fmt.Println(g.GetEdge("B")) // map[C:2]
+func (g *Graph[K, V]) GetEdge(n1 K) map[K]int {
+	if _, exists := g.edges[n1]; exists {
+		return g.edges[n1]
+	}
+	return nil
+}
+
+// Removes an edge between two nodes
+// If the edge does not exist, do nothing
+// If the graph is directed, the edge is removed in one direction
+// If the graph is undirected, the edge is removed in both directions
+// Examples
+// g := New("MyGraph", false)
+// g.AddNode("B", "B",1, 1)
+// g.AddNode("C", "C",2, 2)
+// g.AddEdge("B", "C", 2)
+// g.RemoveEdge("B", "C")
+// fmt.Println(g.HasEdge("B", "C")) // false
+func (g *Graph[K, V]) RemoveEdge(n1, n2 K) {
+	if _, exists := g.edges[n1]; exists {
+		delete(g.edges[n1], n2)
+	}
+	if g.graphType == Undirected {
+		if _, exists := g.edges[n2]; exists {
+			delete(g.edges[n2], n1)
+		}
+	}
+}
+
+// Returns the edges in the graph
+// The edges are returned as a map of maps
+// The outer map is keyed by the node id
+// The inner map is keyed by the node id of the neighbor
+// The value is the weight of the edge
+// Examples
+// g := New("MyGraph", false)
+// g.AddNode("B", "B",1, 1)
+// g.AddNode("C", "C",2, 2)
+// g.AddEdge("B", "C", 2)
+// fmt.Println(g.GetEdges()) // map[B:map[C:2]]
+func (g *Graph[K, V]) GetEdges() map[K]map[K]int {
+	return g.edges
 }
