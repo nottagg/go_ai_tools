@@ -1,5 +1,7 @@
 package graph
 
+import "main.go/helpers"
+
 //go interepretation of https://networkx.org/documentation/stable/_modules/networkx/classes/graph.html#Graph
 
 type Graph[K comparable, V any] struct {
@@ -18,15 +20,13 @@ type Node[K comparable, V any] struct {
 type GraphType int
 
 const (
-	Grid GraphType = iota
-	Directed
+	Directed GraphType = iota
 	Undirected
 )
 
 // For grid type, graph uniqueness is based on x,y coordinates
 // For directed and undirected, graph uniqueness is based on the value of the node
 var graphTypes = map[string]GraphType{
-	"grid":       Grid,
 	"directed":   Directed,
 	"undirected": Undirected,
 }
@@ -67,8 +67,23 @@ func (g *Graph[K, V]) Contains(n K) bool {
 // g.AddNode("A")
 // g.AddNode("B")
 // fmt.Println(g.Length()) // 2
-func (g *Graph[K, V]) Length() int {
+func (g *Graph[K, V]) LengthNodes() int {
 	return len(g.nodes)
+}
+
+// Returns the number of edges in the graph
+// Examples
+// g := New("MyGraph", false)
+// g.AddNode("A")
+// g.AddNode("B")
+// g.AddEdge("A", "B", 1)
+// fmt.Println(g.LengthEdges()) // 1
+func (g *Graph[K, V]) LengthEdges() int {
+	count := 0
+	for _, edges := range g.edges {
+		count += len(edges)
+	}
+	return count
 }
 
 // Adds a node to the graph. Must include an x,y coordinate for
@@ -236,4 +251,89 @@ func (g *Graph[K, V]) RemoveEdge(n1, n2 K) {
 // fmt.Println(g.GetEdges()) // map[B:map[C:2]]
 func (g *Graph[K, V]) GetEdges() map[K]map[K]int {
 	return g.edges
+}
+
+// Returns the graph type
+// The graph type is returned as a string
+// The graph type can be "grid", "directed", or "undirected"
+// Examples
+// g := New("MyGraph", false)
+// fmt.Println(g.GetGraphType()) // "grid"
+func (g *Graph[K, V]) GetGraphType() GraphType {
+	return g.graphType
+}
+
+// Returns a new undirected graph created from a 2D matrix with weights
+// The matrix should be a slice of slices of integers, where each integer
+// represents the weight of the corresponding edge in the grid.
+// A weight of -1 indicates a non-traversable node.
+// Neighbors are determined based on the cells directly left, right, up, and down
+// of the current cell.
+// If allowDiagonal is true, the neighbors are determined based on the cells
+// diagonally adjacent to the current cell as well.
+// Examples
+//
+//	matrix := [][]int{
+//		{0, 1, 0},
+//		{1, 0, 1},
+//		{0, 1, 0},
+//	}
+//
+// g.NewGraphFromMatrix("GridGraph", matrix, true)
+// fmt.Println(g.GetEdges()) // map[0:map[1:1] 1:map[0:1 2:1] 2:map[1:1]]
+func NewGraphFromMatrix(n string, matrix [][]int, allowDiagonal bool) *Graph[helpers.Coordinate, int] {
+	rows := len(matrix)
+	if rows == 0 {
+		return nil
+	}
+	cols := len(matrix[0])
+	nodes := make([]*Node[helpers.Coordinate, int], rows*cols)
+	for i := range rows {
+		for j := range cols {
+			nodes[i*cols+j] = &Node[helpers.Coordinate, int]{
+				x: i,
+				y: j,
+				id: helpers.Coordinate{
+					X: i,
+					Y: j,
+				},
+				value: matrix[i][j],
+			}
+		}
+	}
+	g := &Graph[helpers.Coordinate, int]{
+		nodes:     make(map[helpers.Coordinate]*Node[helpers.Coordinate, int]),
+		edges:     make(map[helpers.Coordinate]map[helpers.Coordinate]int),
+		name:      n,
+		graphType: Undirected,
+	}
+	for _, node := range nodes {
+		g.nodes[node.id] = node
+	}
+
+	//Create edges
+	for i := range rows {
+		for j := range cols {
+			if matrix[i][j] == -1 {
+				continue
+			}
+			nodeID := helpers.Coordinate{X: i, Y: j}
+			if _, exists := g.edges[nodeID]; !exists {
+				g.edges[nodeID] = make(map[helpers.Coordinate]int)
+			}
+			directions := helpers.GetGridDirections(allowDiagonal)
+			for _, direction := range directions {
+				newX := i + direction[0]
+				newY := j + direction[1]
+				if newX >= 0 && newX < rows && newY >= 0 && newY < cols {
+					neighborID := helpers.Coordinate{X: newX, Y: newY}
+					if matrix[newX][newY] != -1 {
+						g.edges[nodeID][neighborID] = matrix[newX][newY]
+					}
+				}
+			}
+		}
+	}
+
+	return g
 }

@@ -2,6 +2,11 @@ package helpers
 
 // Contains helper functions used across the toolset
 
+type Coordinate struct {
+	X int
+	Y int
+}
+
 // MapKeysToSlice takes a generic map and returns the keys as a slice
 func MapKeysToSlice[K comparable, V any](m map[K]V) []K {
 	keys := make([]K, 0, len(m))
