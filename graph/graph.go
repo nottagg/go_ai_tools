@@ -330,10 +330,119 @@ func NewGraphFromMatrix(n string, matrix [][]int, allowDiagonal bool) *Graph[hel
 					if matrix[newX][newY] != -1 {
 						g.edges[nodeID][neighborID] = matrix[newX][newY]
 					}
+					if g.graphType == Undirected {
+						if _, exists := g.edges[neighborID]; !exists {
+							g.edges[neighborID] = make(map[helpers.Coordinate]int)
+						}
+						g.edges[neighborID][nodeID] = matrix[newX][newY]
+					}
+				}
+			}
+		}
+	}
+	return g
+}
+
+func (g* Graph[K, V]) BFS(start, end K) ([]K, []K, error) {
+	visited := make(map[K]bool)
+	queue := []K{start}
+	visited[start] = true
+	parent := make(map[K]K)
+
+	for len(queue) > 0 {
+		node := queue[0]
+		queue = queue[1:]
+
+		if node == end {
+			path := []K{}
+			for node != start {
+				path = append(path, node)
+				node = parent[node]
+			}
+			path = append(path, start)
+			return path, helpers.MapKeysToSlice(parent), nil
+		}
+
+		for neighbor := range g.edges[node] {
+			if !visited[neighbor] {
+				visited[neighbor] = true
+				queue = append(queue, neighbor)
+				parent[neighbor] = node
+			}
+		}
+	}
+
+	return nil, nil, nil
+}
+
+func (g* Graph[K, V]) DFS(start, end K) ([]K, []K, error) {
+	visited := make(map[K]bool)
+	stack := []K{start}
+	visited[start] = true
+	parent := make(map[K]K)
+
+	for len(stack) > 0 {
+		node := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+
+		if node == end {
+			path := []K{}
+			for node != start {
+				path = append(path, node)
+				node = parent[node]
+			}
+			path = append(path, start)
+			return path, helpers.MapKeysToSlice(parent), nil
+		}
+
+		for neighbor := range g.edges[node] {
+			if !visited[neighbor] {
+				visited[neighbor] = true
+				stack = append(stack, neighbor)
+				parent[neighbor] = node
+			}
+		}
+	}
+
+	return nil, nil, nil
+}
+
+func (g* Graph[K, V]) Dijkstra(start, end K) ([]K, []K, error) {
+	visited := make(map[K]bool)
+	distances := make(map[K]int)
+	for node := range g.nodes {
+		distances[node] = int(^uint(0) >> 1) // Set to max int
+	}
+	distances[start] = 0
+
+	queue := helpers.NewPriorityQueue[K]()
+	parent := make(map[K]K)
+
+	for queue.Len() > 0 {
+		node := queue. 
+		queue = queue[1:]
+
+		if node == end {
+			path := []K{}
+			for node != start {
+				path = append(path, node)
+				node = parent[node]
+			}
+			path = append(path, start)
+			return path, helpers.MapKeysToSlice(parent), nil
+		}
+
+		for neighbor, weight := range g.edges[node] {
+			if !visited[neighbor] {
+				newDist := distances[node] + weight
+				if newDist < distances[neighbor] {
+					distances[neighbor] = newDist
+					parent[neighbor] = node
+					queue = append(queue, neighbor)
 				}
 			}
 		}
 	}
 
-	return g
+	return nil, nil, nil
 }
