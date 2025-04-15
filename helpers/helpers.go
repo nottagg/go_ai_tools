@@ -93,12 +93,12 @@ func (pq *PriorityQueue[T]) Pop() any {
 	return item
 }
 
-func (pq PriorityQueue[T]) Enqueue(value T, priority float64) {
+func (pq *PriorityQueue[T]) Enqueue(value T, priority float64) {
 	item := &Item[T]{
 		Value:    value,
 		Priority: priority,
 	}
-	heap.Push(&pq, item)
+	heap.Push(pq, item)
 }
 
 func (pq *PriorityQueue[T]) Dequeue() T {

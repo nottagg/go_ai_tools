@@ -5,16 +5,17 @@ import "main.go/helpers"
 //go interepretation of https://networkx.org/documentation/stable/_modules/networkx/classes/graph.html#Graph
 
 type Graph[K comparable, V any] struct {
-	nodes     map[K]*Node[K, V]
-	edges     map[K]map[K]int
-	name      string
-	graphType GraphType
+	Nodes     map[K]*Node[K, V]
+	Edges     map[K]map[*Node[K, V]]int
+	Name      string
+	GraphType GraphType
 }
 type Node[K comparable, V any] struct {
-	id    K
-	value V
-	x     int
-	y     int
+	Id          K
+	Value       V
+	X           int
+	Y           int
+	CurrentCost float64
 }
 
 type GraphType int
@@ -38,16 +39,11 @@ var graphTypes = map[string]GraphType{
 // g := New("MyGraph", "grid"))
 func New[K comparable, V any](n string, gt GraphType) *Graph[K, V] {
 	return &Graph[K, V]{
-		nodes:     make(map[K]*Node[K, V]),
-		edges:     make(map[K]map[K]int),
-		name:      n,
-		graphType: gt,
+		Nodes:     make(map[K]*Node[K, V]),
+		Edges:     make(map[K]map[*Node[K, V]]int),
+		Name:      n,
+		GraphType: gt,
 	}
-}
-
-// String identifier of the graph
-func (g *Graph[K, V]) Name(s string) {
-	g.name = s
 }
 
 // Returns True if n is a node, False otherwise
@@ -57,7 +53,7 @@ func (g *Graph[K, V]) Name(s string) {
 // fmt.Println(g.Contains("A")) // true
 // fmt.Println(g.Contains("B")) // false
 func (g *Graph[K, V]) Contains(n K) bool {
-	_, exists := g.nodes[n]
+	_, exists := g.Nodes[n]
 	return exists
 }
 
@@ -68,7 +64,7 @@ func (g *Graph[K, V]) Contains(n K) bool {
 // g.AddNode("B")
 // fmt.Println(g.Length()) // 2
 func (g *Graph[K, V]) LengthNodes() int {
-	return len(g.nodes)
+	return len(g.Nodes)
 }
 
 // Returns the number of edges in the graph
@@ -80,7 +76,7 @@ func (g *Graph[K, V]) LengthNodes() int {
 // fmt.Println(g.LengthEdges()) // 1
 func (g *Graph[K, V]) LengthEdges() int {
 	count := 0
-	for _, edges := range g.edges {
+	for _, edges := range g.Edges {
 		count += len(edges)
 	}
 	return count
@@ -95,12 +91,12 @@ func (g *Graph[K, V]) LengthEdges() int {
 // g.AddNode("B", 1, 1)
 // fmt.Println(g.Length()) // 2
 func (g *Graph[K, V]) AddNode(k K, v V, x, y int) {
-	if _, exists := g.nodes[k]; !exists {
-		g.nodes[k] = &Node[K, V]{
-			value: v,
-			x:     x,
-			y:     y,
-			id:    k,
+	if _, exists := g.Nodes[k]; !exists {
+		g.Nodes[k] = &Node[K, V]{
+			Value: v,
+			X:     x,
+			Y:     y,
+			Id:    k,
 		}
 	}
 }
@@ -113,7 +109,7 @@ func (g *Graph[K, V]) AddNode(k K, v V, x, y int) {
 // fmt.Println(g.Length()) // 3
 func (g *Graph[K, V]) AddNodesFrom(nodes []Node[K, V]) {
 	for _, node := range nodes {
-		g.AddNode(node.id, node.value, node.x, node.y)
+		g.AddNode(node.Id, node.Value, node.X, node.Y)
 	}
 }
 
@@ -127,7 +123,7 @@ func (g *Graph[K, V]) AddNodesFrom(nodes []Node[K, V]) {
 // g.RemoveNode("A")
 // fmt.Println(g.Length()) // 1
 func (g *Graph[K, V]) RemoveNode(k K) {
-	delete(g.nodes, k)
+	delete(g.Nodes, k)
 }
 
 // Removes multiple nodes from the graph
@@ -153,22 +149,10 @@ func (g *Graph[K, V]) RemoveNodesFrom(nodes []K) {
 // g.AddNode("B", "B",1, 1)
 // fmt.Println(g.GetNode("A")) // &{A A 0 0}
 func (g *Graph[K, V]) GetNode(n K) *Node[K, V] {
-	if _, exists := g.nodes[n]; exists {
-		return g.nodes[n]
+	if _, exists := g.Nodes[n]; exists {
+		return g.Nodes[n]
 	}
 	return nil
-}
-
-// Returns the map of nodes
-// The map is keyed by the node id
-// The value is a pointer to the node object
-// Examples
-// g := New("MyGraph", false)
-// g.AddNode("A", "A",0, 0)
-// g.AddNode("B", "B",1, 1)
-// fmt.Println(g.GetNodes()) // map[A:{VALUE} B:{VALUE}]
-func (g *Graph[K, V]) GetNodes() map[K]*Node[K, V] {
-	return g.nodes
 }
 
 // Adds an edge between two nodes
@@ -184,21 +168,20 @@ func (g *Graph[K, V]) GetNodes() map[K]*Node[K, V] {
 // g.AddEdge("B", "C", 2)
 // fmt.Println(g.HasEdge("B", "C")) // true
 func (g *Graph[K, V]) AddEdge(n1, n2 K, weight int) {
-	if _, exists := g.nodes[n1]; exists {
-		if _, exists := g.nodes[n2]; exists {
-			if _, exists := g.edges[n1]; !exists {
-				g.edges[n1] = make(map[K]int)
+	if node1, exists := g.Nodes[n1]; exists {
+		if node2, exists := g.Nodes[n2]; exists {
+			if _, exists := g.Edges[n1]; !exists {
+				g.Edges[n1] = make(map[*Node[K, V]]int)
 			}
-			g.edges[n1][n2] = weight
-			if g.graphType == Undirected {
-				if _, exists := g.edges[n2]; !exists {
-					g.edges[n2] = make(map[K]int)
+			g.Edges[n1][node2] = weight
+			if g.GraphType == Undirected {
+				if _, exists := g.Edges[n2]; !exists {
+					g.Edges[n2] = make(map[*Node[K, V]]int)
 				}
-				g.edges[n2][n1] = weight
+				g.Edges[n2][node1] = weight
 			}
 		}
 	}
-
 }
 
 // Gets the edges of a node
@@ -209,9 +192,9 @@ func (g *Graph[K, V]) AddEdge(n1, n2 K, weight int) {
 // g.AddNode("C", "C",2, 2)
 // g.AddEdge("B", "C", 2)
 // fmt.Println(g.GetEdge("B")) // map[C:2]
-func (g *Graph[K, V]) GetEdge(n1 K) map[K]int {
-	if _, exists := g.edges[n1]; exists {
-		return g.edges[n1]
+func (g *Graph[K, V]) GetEdge(n1 K) map[*Node[K, V]]int {
+	if _, exists := g.Edges[n1]; exists {
+		return g.Edges[n1]
 	}
 	return nil
 }
@@ -228,39 +211,14 @@ func (g *Graph[K, V]) GetEdge(n1 K) map[K]int {
 // g.RemoveEdge("B", "C")
 // fmt.Println(g.HasEdge("B", "C")) // false
 func (g *Graph[K, V]) RemoveEdge(n1, n2 K) {
-	if _, exists := g.edges[n1]; exists {
-		delete(g.edges[n1], n2)
+	if _, exists := g.Edges[n1]; exists {
+		delete(g.Edges[n1], g.Nodes[n2])
 	}
-	if g.graphType == Undirected {
-		if _, exists := g.edges[n2]; exists {
-			delete(g.edges[n2], n1)
+	if g.GraphType == Undirected {
+		if _, exists := g.Edges[n2]; exists {
+			delete(g.Edges[n2], g.Nodes[n1])
 		}
 	}
-}
-
-// Returns the edges in the graph
-// The edges are returned as a map of maps
-// The outer map is keyed by the node id
-// The inner map is keyed by the node id of the neighbor
-// The value is the weight of the edge
-// Examples
-// g := New("MyGraph", false)
-// g.AddNode("B", "B",1, 1)
-// g.AddNode("C", "C",2, 2)
-// g.AddEdge("B", "C", 2)
-// fmt.Println(g.GetEdges()) // map[B:map[C:2]]
-func (g *Graph[K, V]) GetEdges() map[K]map[K]int {
-	return g.edges
-}
-
-// Returns the graph type
-// The graph type is returned as a string
-// The graph type can be "grid", "directed", or "undirected"
-// Examples
-// g := New("MyGraph", false)
-// fmt.Println(g.GetGraphType()) // "grid"
-func (g *Graph[K, V]) GetGraphType() GraphType {
-	return g.graphType
 }
 
 // Returns a new undirected graph created from a 2D matrix with weights
@@ -291,24 +249,24 @@ func NewGraphFromMatrix(n string, matrix [][]int, allowDiagonal bool) *Graph[hel
 	for i := range rows {
 		for j := range cols {
 			nodes[i*cols+j] = &Node[helpers.Coordinate, int]{
-				x: i,
-				y: j,
-				id: helpers.Coordinate{
+				X: i,
+				Y: j,
+				Id: helpers.Coordinate{
 					X: i,
 					Y: j,
 				},
-				value: matrix[i][j],
+				Value: matrix[i][j],
 			}
 		}
 	}
 	g := &Graph[helpers.Coordinate, int]{
-		nodes:     make(map[helpers.Coordinate]*Node[helpers.Coordinate, int]),
-		edges:     make(map[helpers.Coordinate]map[helpers.Coordinate]int),
-		name:      n,
-		graphType: Undirected,
+		Nodes:     make(map[helpers.Coordinate]*Node[helpers.Coordinate, int]),
+		Edges:     make(map[helpers.Coordinate]map[*Node[helpers.Coordinate, int]]int),
+		Name:      n,
+		GraphType: Undirected,
 	}
 	for _, node := range nodes {
-		g.nodes[node.id] = node
+		g.Nodes[node.Id] = node
 	}
 
 	//Create edges
@@ -318,8 +276,8 @@ func NewGraphFromMatrix(n string, matrix [][]int, allowDiagonal bool) *Graph[hel
 				continue
 			}
 			nodeID := helpers.Coordinate{X: i, Y: j}
-			if _, exists := g.edges[nodeID]; !exists {
-				g.edges[nodeID] = make(map[helpers.Coordinate]int)
+			if _, exists := g.Edges[nodeID]; !exists {
+				g.Edges[nodeID] = make(map[*Node[helpers.Coordinate, int]]int)
 			}
 			directions := helpers.GetGridDirections(allowDiagonal)
 			for _, direction := range directions {
@@ -328,13 +286,13 @@ func NewGraphFromMatrix(n string, matrix [][]int, allowDiagonal bool) *Graph[hel
 				if newX >= 0 && newX < rows && newY >= 0 && newY < cols {
 					neighborID := helpers.Coordinate{X: newX, Y: newY}
 					if matrix[newX][newY] != -1 {
-						g.edges[nodeID][neighborID] = matrix[newX][newY]
+						g.Edges[nodeID][g.Nodes[neighborID]] = matrix[newX][newY]
 					}
-					if g.graphType == Undirected {
-						if _, exists := g.edges[neighborID]; !exists {
-							g.edges[neighborID] = make(map[helpers.Coordinate]int)
+					if g.GraphType == Undirected {
+						if _, exists := g.Edges[neighborID]; !exists {
+							g.Edges[neighborID] = make(map[*Node[helpers.Coordinate, int]]int)
 						}
-						g.edges[neighborID][nodeID] = matrix[newX][newY]
+						g.Edges[neighborID][g.Nodes[nodeID]] = matrix[newX][newY]
 					}
 				}
 			}
@@ -363,11 +321,11 @@ func (g *Graph[K, V]) BFS(start, end K) ([]K, []K, error) {
 			return path, helpers.MapKeysToSlice(parent), nil
 		}
 
-		for neighbor := range g.edges[node] {
-			if !visited[neighbor] {
-				visited[neighbor] = true
-				queue = append(queue, neighbor)
-				parent[neighbor] = node
+		for neighbor := range g.Edges[node] {
+			if !visited[neighbor.Id] {
+				visited[neighbor.Id] = true
+				queue = append(queue, neighbor.Id)
+				parent[neighbor.Id] = node
 			}
 		}
 	}
@@ -395,11 +353,11 @@ func (g *Graph[K, V]) DFS(start, end K) ([]K, []K, error) {
 			return path, helpers.MapKeysToSlice(parent), nil
 		}
 
-		for neighbor := range g.edges[node] {
-			if !visited[neighbor] {
-				visited[neighbor] = true
-				stack = append(stack, neighbor)
-				parent[neighbor] = node
+		for neighbor := range g.Edges[node] {
+			if !visited[neighbor.Id] {
+				visited[neighbor.Id] = true
+				stack = append(stack, neighbor.Id)
+				parent[neighbor.Id] = node
 			}
 		}
 	}
@@ -407,38 +365,34 @@ func (g *Graph[K, V]) DFS(start, end K) ([]K, []K, error) {
 	return nil, nil, nil
 }
 
-func (g *Graph[K, V]) Dijkstra(start, end K) ([]K, []K, error) {
+func (g *Graph[K, V]) Dijkstra(start, end Node[K, V]) ([]*Node[K, V], []*Node[K, V], error) {
 	visited := make(map[K]bool)
-	distances := make(map[K]int)
-	for node := range g.nodes {
-		distances[node] = int(^uint(0) >> 1) // Set to max int
-	}
-	distances[start] = 0
 
-	queue := helpers.NewPriorityQueue[K]()
-	parent := make(map[K]K)
+	queue := helpers.NewPriorityQueue[*Node[K, V]]()
+	parent := make(map[K]*Node[K, V])
+	start.CurrentCost = 0
+	queue.Enqueue(&start, 0)
 
 	for queue.Len() > 0 {
 		node := queue.Dequeue()
-		if node == end {
-			path := []K{}
-			for node != start {
-				path = append(path, node)
-				node = parent[node]
-			}
-			path = append(path, start)
-			return path, helpers.MapKeysToSlice(parent), nil
-		}
 
-		for neighbor, weight := range g.edges[node] {
-			if !visited[neighbor] {
-				newDist := distances[node] + weight
-				if newDist < distances[neighbor] {
-					distances[neighbor] = newDist
-					parent[neighbor] = node
-					queue = append(queue, neighbor)
-				}
+		if node.Id == end.Id {
+			path := []*Node[K, V]{}
+			for node.Id != start.Id {
+				path = append(path, node)
+				node = parent[node.Id]
 			}
+			return path, helpers.MapValuesToSlice(parent), nil
+		}
+		neighbors := g.Edges[node.Id]
+		for neighbor := range neighbors {
+			if visited[neighbor.Id] {
+				continue
+			}
+			cost := g.Edges[node.Id][g.Nodes[neighbor.Id]]
+			neighbor.CurrentCost = node.CurrentCost + float64(cost)
+			parent[neighbor.Id] = node
+			queue.Enqueue(neighbor, neighbor.CurrentCost)
 		}
 	}
 
