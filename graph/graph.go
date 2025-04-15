@@ -343,7 +343,7 @@ func NewGraphFromMatrix(n string, matrix [][]int, allowDiagonal bool) *Graph[hel
 	return g
 }
 
-func (g* Graph[K, V]) BFS(start, end K) ([]K, []K, error) {
+func (g *Graph[K, V]) BFS(start, end K) ([]K, []K, error) {
 	visited := make(map[K]bool)
 	queue := []K{start}
 	visited[start] = true
@@ -375,7 +375,7 @@ func (g* Graph[K, V]) BFS(start, end K) ([]K, []K, error) {
 	return nil, nil, nil
 }
 
-func (g* Graph[K, V]) DFS(start, end K) ([]K, []K, error) {
+func (g *Graph[K, V]) DFS(start, end K) ([]K, []K, error) {
 	visited := make(map[K]bool)
 	stack := []K{start}
 	visited[start] = true
@@ -407,7 +407,7 @@ func (g* Graph[K, V]) DFS(start, end K) ([]K, []K, error) {
 	return nil, nil, nil
 }
 
-func (g* Graph[K, V]) Dijkstra(start, end K) ([]K, []K, error) {
+func (g *Graph[K, V]) Dijkstra(start, end K) ([]K, []K, error) {
 	visited := make(map[K]bool)
 	distances := make(map[K]int)
 	for node := range g.nodes {
@@ -419,9 +419,7 @@ func (g* Graph[K, V]) Dijkstra(start, end K) ([]K, []K, error) {
 	parent := make(map[K]K)
 
 	for queue.Len() > 0 {
-		node := queue. 
-		queue = queue[1:]
-
+		node := queue.Dequeue()
 		if node == end {
 			path := []K{}
 			for node != start {
