@@ -22,7 +22,7 @@ type Node[K comparable, V any] struct {
 // It can be "grid", "directed", or "undirected"
 // Returns a pointer to a new graph object
 // Examples
-// g := New("MyGraph", "directed"))
+// g := New("MyGraph", true))
 func New[K comparable, V any](n string, isDirected bool) *Graph[K, V] {
 	return &Graph[K, V]{
 		Nodes:      make(map[K]*Node[K, V]),
