@@ -5,10 +5,10 @@ import "main.go/helpers"
 //go interepretation of https://networkx.org/documentation/stable/_modules/networkx/classes/graph.html#Graph
 
 type Graph[K comparable, V any] struct {
-	Nodes     map[K]*Node[K, V]
-	Edges     map[K]map[*Node[K, V]]int
-	Name      string
-	GraphType GraphType
+	Nodes      map[K]*Node[K, V]
+	Edges      map[K]map[*Node[K, V]]int
+	Name       string
+	IsDirected bool
 }
 type Node[K comparable, V any] struct {
 	Id          K
@@ -18,31 +18,17 @@ type Node[K comparable, V any] struct {
 	CurrentCost float64
 }
 
-type GraphType int
-
-const (
-	Directed GraphType = iota
-	Undirected
-)
-
-// For grid type, graph uniqueness is based on x,y coordinates
-// For directed and undirected, graph uniqueness is based on the value of the node
-var graphTypes = map[string]GraphType{
-	"directed":   Directed,
-	"undirected": Undirected,
-}
-
 // GraphType is a string that represents the type of graph
 // It can be "grid", "directed", or "undirected"
 // Returns a pointer to a new graph object
 // Examples
-// g := New("MyGraph", "grid"))
-func New[K comparable, V any](n string, gt GraphType) *Graph[K, V] {
+// g := New("MyGraph", "directed"))
+func New[K comparable, V any](n string, isDirected bool) *Graph[K, V] {
 	return &Graph[K, V]{
-		Nodes:     make(map[K]*Node[K, V]),
-		Edges:     make(map[K]map[*Node[K, V]]int),
-		Name:      n,
-		GraphType: gt,
+		Nodes:      make(map[K]*Node[K, V]),
+		Edges:      make(map[K]map[*Node[K, V]]int),
+		Name:       n,
+		IsDirected: isDirected,
 	}
 }
 
@@ -174,7 +160,7 @@ func (g *Graph[K, V]) AddEdge(n1, n2 K, weight int) {
 				g.Edges[n1] = make(map[*Node[K, V]]int)
 			}
 			g.Edges[n1][node2] = weight
-			if g.GraphType == Undirected {
+			if !g.IsDirected {
 				if _, exists := g.Edges[n2]; !exists {
 					g.Edges[n2] = make(map[*Node[K, V]]int)
 				}
@@ -214,7 +200,7 @@ func (g *Graph[K, V]) RemoveEdge(n1, n2 K) {
 	if _, exists := g.Edges[n1]; exists {
 		delete(g.Edges[n1], g.Nodes[n2])
 	}
-	if g.GraphType == Undirected {
+	if !g.IsDirected {
 		if _, exists := g.Edges[n2]; exists {
 			delete(g.Edges[n2], g.Nodes[n1])
 		}
@@ -260,10 +246,10 @@ func NewGraphFromMatrix(n string, matrix [][]int, allowDiagonal bool) *Graph[hel
 		}
 	}
 	g := &Graph[helpers.Coordinate, int]{
-		Nodes:     make(map[helpers.Coordinate]*Node[helpers.Coordinate, int]),
-		Edges:     make(map[helpers.Coordinate]map[*Node[helpers.Coordinate, int]]int),
-		Name:      n,
-		GraphType: Undirected,
+		Nodes:      make(map[helpers.Coordinate]*Node[helpers.Coordinate, int]),
+		Edges:      make(map[helpers.Coordinate]map[*Node[helpers.Coordinate, int]]int),
+		Name:       n,
+		IsDirected: false,
 	}
 	for _, node := range nodes {
 		g.Nodes[node.Id] = node
@@ -288,12 +274,10 @@ func NewGraphFromMatrix(n string, matrix [][]int, allowDiagonal bool) *Graph[hel
 					if matrix[newX][newY] != -1 {
 						g.Edges[nodeID][g.Nodes[neighborID]] = matrix[newX][newY]
 					}
-					if g.GraphType == Undirected {
-						if _, exists := g.Edges[neighborID]; !exists {
-							g.Edges[neighborID] = make(map[*Node[helpers.Coordinate, int]]int)
-						}
-						g.Edges[neighborID][g.Nodes[nodeID]] = matrix[newX][newY]
+					if _, exists := g.Edges[neighborID]; !exists {
+						g.Edges[neighborID] = make(map[*Node[helpers.Coordinate, int]]int)
 					}
+					g.Edges[neighborID][g.Nodes[nodeID]] = matrix[newX][newY]
 				}
 			}
 		}
