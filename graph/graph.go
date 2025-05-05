@@ -227,6 +227,8 @@ func (g *Graph[K, V]) RemoveEdge(n1, n2 K) {
 // Returns a new undirected graph created from a 2D matrix with weights
 // The matrix should be a slice of slices of integers, where each integer
 // represents the weight of the corresponding edge in the grid.
+// The edge weight is the absolute difference between the values of the
+// two nodes.
 // A weight of -1 indicates a non-traversable node.
 // Neighbors are determined based on the cells directly left, right, up, and down
 // of the current cell.
@@ -304,6 +306,8 @@ func NewGraphFromMatrix(n string, matrix [][]int, allowDiagonal bool) *Graph[hel
 	}
 	return g
 }
+
+//TODO: Maybe enable more extensability by allowing the user to determine the edge weights as maybe diff(0,value)?
 
 func (g *Graph[K, V]) BFS(start, end K) ([]K, []K, error) {
 	visited := make(map[K]bool)
