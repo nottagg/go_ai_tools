@@ -11,6 +11,13 @@ type Coordinate struct {
 	Y int
 }
 
+func IntegerAbsoluteValue(x int) int {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
+
 // MapKeysToSlice takes a generic map and returns the keys as a slice
 func MapKeysToSlice[K comparable, V any](m map[K]V) []K {
 	keys := make([]K, 0, len(m))

@@ -178,11 +178,28 @@ func (g *Graph[K, V]) AddEdge(n1, n2 K, weight int) {
 // g.AddNode("C", "C",2, 2)
 // g.AddEdge("B", "C", 2)
 // fmt.Println(g.GetEdge("B")) // map[C:2]
-func (g *Graph[K, V]) GetEdge(n1 K) map[*Node[K, V]]int {
+func (g *Graph[K, V]) GetNodeEdges(n1 K) map[*Node[K, V]]int {
 	if _, exists := g.Edges[n1]; exists {
 		return g.Edges[n1]
 	}
 	return nil
+}
+
+// Returns the edge weight between two nodes
+// If the edge does not exist, return -1
+// Examples
+// g := New("MyGraph", false)
+// g.AddNode("B", "B",1, 1)
+// g.AddNode("C", "C",2, 2)
+// g.AddEdge("B", "C", 2)
+// fmt.Println(g.GetEdgeWeight("B", "C")) // 2
+func (g *Graph[K, V]) GetEdgeWeight(n1, n2 K) int {
+	if _, exists := g.Edges[n1]; exists {
+		if _, exists := g.Edges[n1][g.Nodes[n2]]; exists {
+			return g.Edges[n1][g.Nodes[n2]]
+		}
+	}
+	return -1
 }
 
 // Removes an edge between two nodes
@@ -269,15 +286,18 @@ func NewGraphFromMatrix(n string, matrix [][]int, allowDiagonal bool) *Graph[hel
 			for _, direction := range directions {
 				newX := i + direction[0]
 				newY := j + direction[1]
+
 				if newX >= 0 && newX < rows && newY >= 0 && newY < cols {
-					neighborID := helpers.Coordinate{X: newX, Y: newY}
-					if matrix[newX][newY] != -1 {
-						g.Edges[nodeID][g.Nodes[neighborID]] = matrix[newX][newY]
+					if matrix[newX][newY] == -1 {
+						continue
 					}
+					neighborID := helpers.Coordinate{X: newX, Y: newY}
+					edge_difference := helpers.IntegerAbsoluteValue(matrix[i][j] - matrix[newX][newY])
+					g.Edges[nodeID][g.Nodes[neighborID]] = edge_difference
 					if _, exists := g.Edges[neighborID]; !exists {
 						g.Edges[neighborID] = make(map[*Node[helpers.Coordinate, int]]int)
 					}
-					g.Edges[neighborID][g.Nodes[nodeID]] = matrix[newX][newY]
+					g.Edges[neighborID][g.Nodes[nodeID]] = edge_difference
 				}
 			}
 		}
