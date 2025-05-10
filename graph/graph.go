@@ -357,23 +357,23 @@ func (g *Graph[K, V]) BFS(start, end K) ([]K, int, error) {
 	return nil, -1, errors.New("No path found")
 }
 
-func (g *Graph[K, V]) DFS(start, end Node[K, V]) ([]K, int, error) {
+func (g *Graph[K, V]) DFS(start, end Node[K, V]) ([]*Node[K, V], int, error) {
 	visited := make(map[K]bool)
 	stack := []*Node[K, V]{&start}
 	visited[start.Id] = true
-	parent := make(map[K]K)
+	parent := make(map[K]*Node[K, V])
 
 	for len(stack) > 0 {
 		node := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
 
-		if node == end {
-			path := []K{}
-			for node != start {
+		if node.Id == end.Id {
+			path := []*Node[K, V]{}
+			for node.Id != start.Id {
 				path = append(path, node)
-				node = parent[node]
+				node = parent[node.Id]
 			}
-			path = append(path, start)
+			path = append(path, node)
 			return path, len(visited), nil
 		}
 
