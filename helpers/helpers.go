@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"container/heap"
+	"math"
 )
 
 // Contains helper functions used across the toolset
@@ -16,6 +17,12 @@ func IntegerAbsoluteValue(x int) int {
 		return -x
 	}
 	return x
+}
+
+func EuclideanDistance(x1, x2, y1, y2 int) float64 {
+	dx := IntegerAbsoluteValue(x1 - x2)
+	dy := IntegerAbsoluteValue(y1 - y2)
+	return math.Sqrt(float64(dx*dx + dy*dy))
 }
 
 // MapKeysToSlice takes a generic map and returns the keys as a slice

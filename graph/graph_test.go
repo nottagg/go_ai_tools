@@ -143,3 +143,59 @@ func TestGraphFromMatrixDiag(t *testing.T) {
 		t.Errorf("Expected nil for -1 node, got %v", g.GetNodeEdges(helpers.Coordinate{X: 2, Y: 2}))
 	}
 }
+
+func TestAStarSearch(t *testing.T) {
+	matrix := [][]int{
+		{0, 1, 2, -1, -1},
+		{1, 0, -1, 3, -1},
+		{2, -1, 0, 1, 4},
+		{-1, 3, 1, 0, 2},
+		{-1, -1, 4, 2, 0},
+	}
+
+	// Create a graph from the matrix
+	g := NewGraphFromMatrix("testGraph", matrix, false)
+	if g == nil {
+		t.Fatal("Expected a graph, got nil")
+	}
+
+	// Ensure the graph has at least 15 nodes
+	if len(g.Nodes) < 15 {
+		t.Fatalf("Expected at least 15 nodes, got %d", len(g.Nodes))
+	}
+
+	// Define start and goal nodes
+	start := g.GetNode(helpers.Coordinate{X: 0, Y: 0})
+	goal := g.GetNode(helpers.Coordinate{X: 4, Y: 4})
+
+	// Run A* search
+	path, cost, error := g.AStar(*start, *goal)
+
+	if error != nil {
+		t.Fatalf("Expected no error, got %v", error)
+	}
+	// Validate the results
+	if path == nil {
+		t.Fatalf("Expected a valid path, got nil")
+	}
+
+	if cost <= 0 {
+		t.Errorf("Expected a positive cost, got %d", cost)
+	}
+
+	// Print the path for debugging
+	t.Logf("Path: %v, Cost: %d", path, cost)
+
+	// Additional checks
+	if len(path) < 2 {
+		t.Errorf("Expected a path with at least 2 nodes, got %d", len(path))
+	}
+
+	// Ensure the path starts and ends at the correct nodes
+	if path[0] != start {
+		t.Errorf("Expected path to start at %v, got %v", start, path[0])
+	}
+	if path[len(path)-1] != goal {
+		t.Errorf("Expected path to end at %v, got %v", goal, path[len(path)-1])
+	}
+}

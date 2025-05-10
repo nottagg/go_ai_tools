@@ -1,6 +1,10 @@
 package graph
 
-import "main.go/helpers"
+import (
+	"errors"
+
+	"main.go/helpers"
+)
 
 //go interepretation of https://networkx.org/documentation/stable/_modules/networkx/classes/graph.html#Graph
 
@@ -309,7 +313,20 @@ func NewGraphFromMatrix(n string, matrix [][]int, allowDiagonal bool) *Graph[hel
 
 //TODO: Maybe enable more extensability by allowing the user to determine the edge weights as maybe diff(0,value)?
 
-func (g *Graph[K, V]) BFS(start, end K) ([]K, []K, error) {
+//Returns a path from start to end using BFS
+// If no path exists, return nil
+// If the start or end node is not in the graph, return nil
+// Examples
+// g := New("MyGraph", false)
+// g.AddNode("A", "A",0, 0)
+// g.AddNode("B", "B",1, 1)
+// g.AddNode("C", "C",2, 2)
+// g.AddEdge("A", "B", 1)
+// g.AddEdge("B", "C", 1)
+// path, _, err := g.BFS("A", "C")
+// if err != nil {
+
+func (g *Graph[K, V]) BFS(start, end K) ([]K, int, error) {
 	visited := make(map[K]bool)
 	queue := []K{start}
 	visited[start] = true
@@ -320,13 +337,13 @@ func (g *Graph[K, V]) BFS(start, end K) ([]K, []K, error) {
 		queue = queue[1:]
 
 		if node == end {
-			path := []K{}
+			path := []*Node[K, V]{}
 			for node != start {
 				path = append(path, node)
 				node = parent[node]
 			}
 			path = append(path, start)
-			return path, helpers.MapKeysToSlice(parent), nil
+			return path, len(visited), nil
 		}
 
 		for neighbor := range g.Edges[node] {
@@ -337,14 +354,13 @@ func (g *Graph[K, V]) BFS(start, end K) ([]K, []K, error) {
 			}
 		}
 	}
-
-	return nil, nil, nil
+	return nil, -1, errors.New("No path found")
 }
 
-func (g *Graph[K, V]) DFS(start, end K) ([]K, []K, error) {
+func (g *Graph[K, V]) DFS(start, end Node[K, V]) ([]K, int, error) {
 	visited := make(map[K]bool)
-	stack := []K{start}
-	visited[start] = true
+	stack := []*Node[K, V]{&start}
+	visited[start.Id] = true
 	parent := make(map[K]K)
 
 	for len(stack) > 0 {
@@ -358,7 +374,7 @@ func (g *Graph[K, V]) DFS(start, end K) ([]K, []K, error) {
 				node = parent[node]
 			}
 			path = append(path, start)
-			return path, helpers.MapKeysToSlice(parent), nil
+			return path, len(visited), nil
 		}
 
 		for neighbor := range g.Edges[node] {
@@ -370,12 +386,12 @@ func (g *Graph[K, V]) DFS(start, end K) ([]K, []K, error) {
 		}
 	}
 
-	return nil, nil, nil
+	return nil, 0, errors.New("No path found")
 }
 
 func (g *Graph[K, V]) Dijkstra(start, end Node[K, V]) ([]*Node[K, V], []*Node[K, V], error) {
 	visited := make(map[K]bool)
-
+	visited[start.Id] = true
 	queue := helpers.NewPriorityQueue[*Node[K, V]]()
 	parent := make(map[K]*Node[K, V])
 	start.CurrentCost = 0
@@ -401,6 +417,42 @@ func (g *Graph[K, V]) Dijkstra(start, end Node[K, V]) ([]*Node[K, V], []*Node[K,
 			neighbor.CurrentCost = node.CurrentCost + float64(cost)
 			parent[neighbor.Id] = node
 			queue.Enqueue(neighbor, neighbor.CurrentCost)
+		}
+	}
+
+	return nil, nil, nil
+}
+
+func (g *Graph[K, V]) AStar(start, end Node[K, V]) ([]*Node[K, V], []*Node[K, V], error) {
+	visited := make(map[K]bool)
+	visited[start.Id] = true
+	queue := helpers.NewPriorityQueue[*Node[K, V]]()
+	parent := make(map[K]*Node[K, V])
+	start.CurrentCost = 0
+	queue.Enqueue(&start, 0)
+
+	for queue.Len() > 0 {
+		node := queue.Dequeue()
+
+		if node.Id == end.Id {
+			path := []*Node[K, V]{}
+			for node.Id != start.Id {
+				path = append(path, node)
+				node = parent[node.Id]
+			}
+			return path, helpers.MapValuesToSlice(parent), nil
+		}
+		neighbors := g.Edges[node.Id]
+		for neighbor := range neighbors {
+			if visited[neighbor.Id] {
+				continue
+			}
+			cost := g.Edges[node.Id][g.Nodes[neighbor.Id]]
+			neighbor.CurrentCost = node.CurrentCost + float64(cost)
+			parent[neighbor.Id] = node
+
+			heuristic := helpers.EuclideanDistance(neighbor.X, neighbor.Y, end.X, end.Y)
+			queue.Enqueue(neighbor, neighbor.CurrentCost+heuristic)
 		}
 	}
 
