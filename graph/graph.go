@@ -1,7 +1,6 @@
 package graph
 
 import (
-	"container/heap"
 	"errors"
 
 	"main.go/helpers"
@@ -34,6 +33,22 @@ func New[K comparable, V any](name string, isDirected bool) *Graph[K, V] {
 		Edges:      make(map[K]map[K]float64),
 		Name:       name,
 		IsDirected: isDirected,
+	}
+}
+
+// Resets the current cost and parent of all nodes in the graph
+// This is useful for algorithms that need to reinitialize the graph state
+// Examples
+// g := New("MyGraph", true)
+// g.AddNode("A", 1)
+// g.AddNode("B", 2)
+// g.ResetNodes()
+// fmt.Println(g.Nodes["A"].CurrentCost) // Output: 0
+// fmt.Println(g.Nodes["A"].Parent) // Output: <nil>
+func (g *Graph[K, V]) ResetNodes() {
+	for _, node := range g.Nodes {
+		node.CurrentCost = 0
+		node.Parent = nil
 	}
 }
 
@@ -97,14 +112,8 @@ func (g *Graph[K, V]) RemoveNode(k K) {
 	if g.ContainsNode(k) {
 		delete(g.Nodes, k)
 		delete(g.Edges, k)
-		// Remove all edges associated with the node
-		if _, exists := g.Edges[k]; exists {
-			delete(g.Edges, k)
-		}
 		for e := range g.Edges {
-			if _, exists := g.Edges[e][k]; exists {
-				delete(g.Edges[e], k)
-			}
+			delete(g.Edges[e], k)
 		}
 	}
 }
@@ -395,19 +404,12 @@ func (g *Graph[K, V]) Dijkstra(start, end K) ([]K, []K, error) {
 		return nil, nil, errors.New("start or end node not in graph")
 	}
 	visited := make(map[K]bool)
-	visited[start] = true
 	pq := make(helpers.PriorityQueue[K], 0)
-	heap.Init(&pq)
-	heap.Push(&pq, &helpers.Item[K]{
-		Value:    start,
-		Priority: 0,
-	})
+	pq.PushItem(start, 0)
 	g.Nodes[start].CurrentCost = 0
 
 	for pq.Len() > 0 {
-		item := heap.Pop(&pq).(*helpers.Item[K])
-		node := item.Value
-
+		node := pq.PopItem()
 		if visited[node] {
 			continue
 		}
@@ -416,18 +418,16 @@ func (g *Graph[K, V]) Dijkstra(start, end K) ([]K, []K, error) {
 			path := g.constructPath(node)
 			return path, helpers.MapKeysToSlice(visited), nil
 		}
-
 		for neighbor := range g.Edges[node] {
-			g.Nodes[neighbor].Parent = g.Nodes[node]
-			if neighbor == end {
-				path := g.constructPath(neighbor)
-				return path, helpers.MapKeysToSlice(visited), nil
+			if visited[neighbor] {
+				continue
 			}
-			g.Nodes[neighbor].CurrentCost = g.Nodes[node].CurrentCost + g.GetEdgeWeight(node, neighbor)
-			heap.Push(&pq, &helpers.Item[K]{
-				Value:    neighbor,
-				Priority: g.Nodes[neighbor].CurrentCost,
-			})
+			newCost := g.Nodes[node].CurrentCost + g.GetEdgeWeight(node, neighbor)
+			if g.Nodes[neighbor].Parent == nil || newCost < g.Nodes[neighbor].CurrentCost {
+				g.Nodes[neighbor].CurrentCost = newCost
+				g.Nodes[neighbor].Parent = g.Nodes[node]
+				pq.PushItem(neighbor, newCost)
+			}
 		}
 	}
 	return nil, nil, errors.New("no path found")
@@ -464,19 +464,12 @@ func (g *Graph[K, V]) AStar(start, end K, heuristic func(a, b K) float64) ([]K, 
 		return nil, nil, errors.New("start or end node not in graph")
 	}
 	visited := make(map[K]bool)
-	visited[start] = true
 	pq := make(helpers.PriorityQueue[K], 0)
-	heap.Init(&pq)
-	heap.Push(&pq, &helpers.Item[K]{
-		Value:    start,
-		Priority: 0,
-	})
+	pq.PushItem(start, 0)
 	g.Nodes[start].CurrentCost = 0
 
 	for pq.Len() > 0 {
-		item := heap.Pop(&pq).(*helpers.Item[K])
-		node := item.Value
-
+		node := pq.PopItem()
 		if visited[node] {
 			continue
 		}
@@ -485,18 +478,16 @@ func (g *Graph[K, V]) AStar(start, end K, heuristic func(a, b K) float64) ([]K, 
 			path := g.constructPath(node)
 			return path, helpers.MapKeysToSlice(visited), nil
 		}
-
 		for neighbor := range g.Edges[node] {
-			g.Nodes[neighbor].Parent = g.Nodes[node]
-			if neighbor == end {
-				path := g.constructPath(neighbor)
-				return path, helpers.MapKeysToSlice(visited), nil
+			if visited[neighbor] {
+				continue
 			}
-			g.Nodes[neighbor].CurrentCost = g.Nodes[node].CurrentCost + g.GetEdgeWeight(node, neighbor) + heuristic(node, neighbor)
-			heap.Push(&pq, &helpers.Item[K]{
-				Value:    neighbor,
-				Priority: g.Nodes[neighbor].CurrentCost,
-			})
+			newCost := g.Nodes[node].CurrentCost + g.GetEdgeWeight(node, neighbor) + heuristic(neighbor, end)
+			if g.Nodes[neighbor].Parent == nil || newCost < g.Nodes[neighbor].CurrentCost {
+				g.Nodes[neighbor].CurrentCost = newCost
+				g.Nodes[neighbor].Parent = g.Nodes[node]
+				pq.PushItem(neighbor, newCost)
+			}
 		}
 	}
 	return nil, nil, errors.New("no path found")
