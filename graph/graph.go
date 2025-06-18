@@ -247,9 +247,6 @@ func NewGraphFromMatrix(n string, matrix [][]float64, allowDiagonal bool) *Graph
 
 	for i := range matrix {
 		for j := range matrix[i] {
-			if matrix[i][j] == -1 {
-				continue // Skip non-traversable nodes
-			}
 			k1 := helpers.Coordinate{X: float64(i), Y: float64(j)}
 			g.AddNode(k1, matrix[i][j])
 			for _, dir := range directions {
@@ -258,6 +255,10 @@ func NewGraphFromMatrix(n string, matrix [][]float64, allowDiagonal bool) *Graph
 					k2 := helpers.Coordinate{X: float64(ni), Y: float64(nj)}
 					if _, exists := g.Nodes[k2]; !exists {
 						g.AddNode(k2, matrix[ni][nj])
+					}
+					// Don't add edge for value of -1
+					if matrix[ni][nj] == -1 || matrix[i][j] == -1 {
+						continue
 					}
 					g.AddEdge(k1, k2, matrix[ni][nj])
 					g.AddEdge(k2, k1, matrix[i][j])
