@@ -35,7 +35,7 @@ func (m *MockGameState) IsTerminal() bool {
 	return len(m.moves) == 0
 }
 
-func TestMinimaxWithAlphaBeta(t *testing.T) {
+func TestMinimax(t *testing.T) {
 	state := &MockGameState{
 		moves: []interface{}{"move1", "move2"},
 		value: 0,
